@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Repaint",
+  "version": "0.1.0",
+  "description": "Restyle any website with your own CSS. Live preview, stored only on your device.",
+  "homepage_url": "https://github.com/natgurlain/repaint",
+  "permissions": ["storage", "tabs", "favicon"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "content_scripts": [
+    { "matches": ["<all_urls>"], "js": ["content.js"], "run_at": "document_start", "all_frames": false }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Repaint",
+    "default_icon": { "16": "icons/on-16.png", "32": "icons/on-32.png", "48": "icons/on-48.png" }
+  },
+  "icons": { "16": "icons/on-16.png", "32": "icons/on-32.png", "48": "icons/on-48.png", "128": "icons/on-128.png" },
+  "options_page": "editor.html"
+}

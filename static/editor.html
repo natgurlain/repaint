@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Editor · Repaint</title>
+    <link rel="icon" href="icons/on-32.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      :root {
+        --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+        --code-size: 13.5px;
+        --code-line: 22px;
+        --code-pad: 18px;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        overflow: hidden;
+      }
+      .app {
+        display: grid;
+        grid-template-columns: 300px minmax(0, 1fr);
+        height: 100vh;
+      }
+
+      /* ---- Sidebar ---- */
+      .side {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        border-right: 1px solid var(--border);
+        background: var(--surface);
+      }
+      .side-top {
+        padding: 18px 16px 12px;
+        display: grid;
+        gap: 14px;
+      }
+      .side-brand {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .search {
+        position: relative;
+      }
+      .search .icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-3);
+        pointer-events: none;
+      }
+      .search .input {
+        width: 100%;
+        height: 36px;
+        padding-left: 36px;
+        background: var(--surface-2);
+        border-color: transparent;
+      }
+      .list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 4px 10px 12px;
+        margin: 0;
+        list-style: none;
+      }
+      .group-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 8px 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-2);
+      }
+      .group-head .count {
+        margin-left: auto;
+        font-weight: 500;
+        color: var(--text-3);
+      }
+      .item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 8px 0 0;
+        border-radius: 10px;
+      }
+      .item:hover {
+        background: var(--surface-2);
+      }
+      .item.selected {
+        background: var(--accent-soft);
+      }
+      .item button.pick {
+        flex: 1;
+        min-width: 0;
+        text-align: left;
+        border: 0;
+        background: transparent;
+        padding: 8px 10px 8px 32px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 13.5px;
+        font-weight: 550;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .item.selected button.pick {
+        color: var(--accent-strong);
+      }
+      .item.disabled button.pick {
+        color: var(--text-3);
+      }
+      .no-results {
+        padding: 24px 12px;
+        text-align: center;
+        font-size: 13px;
+        color: var(--text-3);
+      }
+      .side-foot {
+        padding: 12px 16px 14px;
+        border-top: 1px solid var(--border);
+        display: grid;
+        gap: 10px;
+      }
+      .side-foot .row {
+        display: flex;
+        gap: 6px;
+      }
+      .side-foot .row .btn {
+        flex: 1;
+      }
+
+      /* ---- Main ---- */
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        background: var(--bg);
+      }
+      #edit {
+        flex: 1;
+      }
+      .head {
+        padding: 22px 28px 16px;
+        display: grid;
+        gap: 12px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+      }
+      .name-input {
+        border: 0;
+        outline: none;
+        background: transparent;
+        font-family: var(--font-display);
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        padding: 2px 6px;
+        margin: 0 -6px;
+        border-radius: 8px;
+        min-width: 0;
+      }
+      .name-input:hover {
+        background: var(--surface-2);
+      }
+      .name-input:focus {
+        background: var(--surface-2);
+        box-shadow: 0 0 0 3px var(--accent-soft);
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+      .site-field {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+      .site-field > span {
+        position: absolute;
+        left: 11px;
+        top: 0;
+        bottom: 0;
+        display: grid;
+        place-items: center;
+        pointer-events: none;
+      }
+      .site-field .input {
+        height: 34px;
+        width: 240px;
+        padding-left: 34px;
+        font-size: 13.5px;
+      }
+      .site-error {
+        font-size: 12px;
+        color: var(--danger);
+      }
+      .enabled-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 550;
+        color: var(--text-2);
+        margin-left: 4px;
+      }
+      .spacer {
+        flex: 1;
+      }
+
+      /* ---- Code editor ---- */
+      .code {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        background: var(--surface);
+        font-family: var(--mono);
+        font-size: var(--code-size);
+        line-height: var(--code-line);
+      }
+      .gutter {
+        overflow: hidden;
+        padding: var(--code-pad) 12px var(--code-pad) 20px;
+        text-align: right;
+        color: var(--text-3);
+        opacity: 0.7;
+        user-select: none;
+        min-width: 56px;
+        border-right: 1px solid var(--border);
+        background: var(--surface);
+        font-variant-numeric: tabular-nums;
+      }
+      .gutter div.current {
+        color: var(--text);
+        opacity: 1;
+      }
+      .code-area {
+        position: relative;
+        min-width: 0;
+        overflow: hidden;
+      }
+      .code-area pre,
+      .code-area textarea {
+        position: absolute;
+        inset: 0;
+        margin: 0;
+        padding: var(--code-pad) 24px 40vh;
+        border: 0;
+        font: inherit;
+        line-height: inherit;
+        white-space: pre;
+        tab-size: 2;
+        letter-spacing: 0;
+        word-wrap: normal;
+        overflow-wrap: normal;
+      }
+      .code-area pre {
+        pointer-events: none;
+        overflow: hidden;
+        color: var(--text);
+      }
+      .code-area pre code {
+        display: block;
+        font: inherit;
+        will-change: transform;
+      }
+      .code-area textarea {
+        resize: none;
+        outline: none;
+        background: transparent;
+        color: transparent;
+        caret-color: var(--text);
+        overflow: auto;
+      }
+      .code-area textarea::selection {
+        background: color-mix(in srgb, var(--accent) 28%, transparent);
+        color: transparent;
+      }
+      .code-area textarea::placeholder {
+        color: var(--text-3);
+      }
+
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 0 20px;
+        height: 34px;
+        border-top: 1px solid var(--border);
+        background: var(--surface);
+        font-size: 12px;
+        color: var(--text-3);
+        font-variant-numeric: tabular-nums;
+      }
+      .status .dot {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-weight: 550;
+        color: var(--text-2);
+      }
+      .status .dot::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #0ca30c;
+      }
+      .status .dot.saving::before {
+        background: var(--text-3);
+      }
+      .status .dot.flash {
+        color: var(--text);
+      }
+      .status kbd {
+        font-family: var(--font);
+        padding: 1px 6px;
+        border-radius: 5px;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        font-size: 11px;
+      }
+      .status .warn {
+        color: var(--danger);
+      }
+
+      /* ---- Create panel / empty state ---- */
+      .create {
+        flex: 1;
+        overflow-y: auto;
+        display: grid;
+        place-items: center;
+        padding: 40px 24px;
+      }
+      .create-inner {
+        width: min(640px, 100%);
+        display: grid;
+        gap: 20px;
+        text-align: center;
+        justify-items: center;
+      }
+      .create .big-logo {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+      }
+      .create .big-logo::before {
+        width: 22px;
+        height: 22px;
+        margin-top: 6px;
+      }
+      .create h1 {
+        font-family: var(--font-display);
+        font-size: 34px;
+        font-weight: 750;
+        letter-spacing: -0.035em;
+        line-height: 1.1;
+      }
+      .create p.lede {
+        color: var(--text-2);
+        font-size: 15px;
+        max-width: 48ch;
+        margin-top: -8px;
+      }
+      .create .site-field .input {
+        width: 320px;
+        height: 44px;
+        font-size: 15px;
+        padding-left: 38px;
+      }
+      .create .site-field > span {
+        left: 14px;
+      }
+      .tiles {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .tile {
+        display: grid;
+        align-content: start;
+        gap: 6px;
+        text-align: left;
+        padding: 14px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        box-shadow: var(--shadow-sm);
+        cursor: pointer;
+        transition: transform 0.15s var(--ease), border-color 0.15s, box-shadow 0.15s;
+      }
+      .tile:hover:not(:disabled) {
+        transform: translateY(-2px);
+        border-color: var(--border-strong);
+        box-shadow: var(--shadow);
+      }
+      .tile:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .tile .glyph {
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        background: var(--surface-2);
+        color: var(--text-2);
+      }
+      .tile.blank .glyph {
+        background: linear-gradient(135deg, #f08a5d, #d55181);
+        color: #fff;
+      }
+      .tile b {
+        font-size: 14px;
+        font-weight: 650;
+      }
+      .tile span {
+        font-size: 12.5px;
+        color: var(--text-3);
+        line-height: 1.35;
+      }
+      @media (max-width: 760px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+        .side {
+          display: none;
+        }
+        .tiles {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+    </style>
+    <script type="module" src="editor.js"></script>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="side">
+        <div class="side-top">
+          <div class="side-brand">
+            <span class="brand"><span class="logo"></span>Repaint</span>
+            <span id="master"></span>
+          </div>
+          <label class="search">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            <input class="input" id="search" type="search" placeholder="Search styles" autocomplete="off" aria-label="Search styles" />
+          </label>
+        </div>
+        <ul class="list" id="list"></ul>
+        <div class="side-foot">
+          <button class="btn primary" id="new">New style</button>
+          <div class="row">
+            <button class="btn sm" id="import">Import</button>
+            <button class="btn sm" id="export">Export</button>
+          </div>
+          <input type="file" id="import-file" accept="application/json,.json" hidden />
+          <p class="credit">
+            Made by <a href="https://x.com/natgurlain" target="_blank" rel="noopener">@natgurlain</a> ·
+            <a href="https://github.com/natgurlain/repaint" target="_blank" rel="noopener">Source on GitHub</a>
+          </p>
+        </div>
+      </aside>
+
+      <main class="main">
+        <section class="create" id="create" hidden>
+          <div class="create-inner rise">
+            <span class="logo big-logo"></span>
+            <h1 id="create-title">Paint the web your way</h1>
+            <p class="lede" id="create-lede">Pick a site, then start from a quick style or a blank page. Changes show up live in your open tabs.</p>
+            <label class="site-field">
+              <span id="create-favicon"></span>
+              <input class="input" id="create-site" placeholder="example.com, or * for every site" autocomplete="off" spellcheck="false" aria-label="Site" />
+            </label>
+            <div class="site-error" id="create-error" role="alert"></div>
+            <div class="tiles" id="tiles"></div>
+          </div>
+        </section>
+
+        <section class="main" id="edit" hidden>
+          <header class="head">
+            <input class="name-input" id="name" aria-label="Style name" autocomplete="off" spellcheck="false" />
+            <div class="meta">
+              <label class="site-field">
+                <span id="site-favicon"></span>
+                <input class="input" id="site" aria-label="Site this style applies to" autocomplete="off" spellcheck="false" />
+              </label>
+              <span class="site-error" id="site-error" role="alert"></span>
+              <span class="enabled-label" id="enabled"></span>
+              <span class="spacer"></span>
+              <button class="btn sm" id="duplicate">Duplicate</button>
+              <button class="btn sm danger" id="delete">Delete</button>
+            </div>
+          </header>
+          <div class="code">
+            <div class="gutter" id="gutter" aria-hidden="true"></div>
+            <div class="code-area">
+              <pre aria-hidden="true"><code id="highlight"></code></pre>
+              <textarea id="css" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="CSS" placeholder="/* Write CSS here. It applies as you type. */"></textarea>
+            </div>
+          </div>
+          <footer class="status">
+            <span class="dot" id="save-state">Saved</span>
+            <span id="rules"></span>
+            <span id="tabs"></span>
+            <span class="spacer"></span>
+            <span><kbd id="save-key">⌘S</kbd> save · <kbd>Tab</kbd> indent</span>
+          </footer>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

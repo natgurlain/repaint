@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Repaint</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body {
+        width: 360px;
+        background: var(--surface);
+      }
+      .wrap {
+        padding: 16px 18px 14px;
+        display: grid;
+        gap: 16px;
+      }
+      .bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .master {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--text-2);
+      }
+      .site {
+        display: grid;
+        grid-template-columns: 32px 1fr auto;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: var(--radius);
+        background: var(--surface-2);
+      }
+      .site-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        background: var(--surface);
+        display: grid;
+        place-items: center;
+        box-shadow: var(--shadow-sm), 0 0 0 1px var(--border);
+      }
+      .site-host {
+        font-weight: 650;
+        font-size: 14.5px;
+        letter-spacing: -0.01em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .site-sub {
+        font-size: 12px;
+        color: var(--text-3);
+      }
+      .notice {
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: var(--danger-soft);
+        font-size: 12.5px;
+        color: var(--text);
+      }
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 6px;
+      }
+      .styles {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 2px;
+        transition: opacity 0.2s;
+      }
+      .styles.off {
+        opacity: 0.45;
+      }
+      .style-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 8px 7px 10px;
+        margin: 0 -10px;
+        border-radius: 10px;
+      }
+      .style-row:hover {
+        background: var(--surface-2);
+      }
+      .style-text {
+        min-width: 0;
+      }
+      .style-name {
+        font-weight: 550;
+        font-size: 13.5px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .style-site {
+        font-size: 11.5px;
+        color: var(--text-3);
+      }
+      .style-row .btn {
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      .style-row:hover .btn,
+      .style-row .btn:focus-visible {
+        opacity: 1;
+      }
+      .empty {
+        padding: 14px;
+        border-radius: 12px;
+        border: 1px dashed var(--border-strong);
+        color: var(--text-2);
+        font-size: 12.5px;
+        text-align: center;
+      }
+      .starters {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .starter {
+        display: grid;
+        grid-template-columns: 28px 1fr;
+        gap: 2px 10px;
+        align-items: center;
+        text-align: left;
+        padding: 10px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s, transform 0.15s var(--ease);
+      }
+      .starter:hover {
+        background: var(--surface-2);
+      }
+      .starter:active {
+        transform: scale(0.98);
+      }
+      .starter .glyph {
+        grid-row: span 2;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: var(--surface-2);
+        color: var(--text-2);
+      }
+      .starter b {
+        font-size: 12.5px;
+        font-weight: 600;
+      }
+      .starter span {
+        font-size: 11px;
+        color: var(--text-3);
+        line-height: 1.3;
+      }
+      .starter:last-child:nth-child(odd) {
+        grid-column: span 2;
+      }
+      .starter[aria-pressed="true"] {
+        border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+        background: var(--accent-soft);
+      }
+      .starter[aria-pressed="true"] .glyph {
+        background: var(--accent);
+        color: #fff;
+      }
+      .starter:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+      }
+    </style>
+    <script type="module" src="popup.js"></script>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="bar">
+        <span class="brand"><span class="logo"></span>Repaint</span>
+        <span class="master" id="master"></span>
+      </div>
+
+      <div class="site" id="site" hidden>
+        <span class="site-icon" id="site-icon"></span>
+        <div style="min-width: 0">
+          <div class="site-host" id="site-host"></div>
+          <div class="site-sub" id="site-sub"></div>
+        </div>
+        <span id="site-switch"></span>
+      </div>
+
+      <p class="notice" id="notice" hidden></p>
+
+      <section id="here" hidden>
+        <div class="section-head"><span class="eyebrow">Styles here</span></div>
+        <ul class="styles" id="styles"></ul>
+      </section>
+
+      <section id="quick" hidden>
+        <div class="section-head"><span class="eyebrow">Quick styles for this site</span></div>
+        <div class="starters" id="starters"></div>
+      </section>
+
+      <div class="actions">
+        <button class="btn primary" id="new-style">New style for this site</button>
+        <button class="btn" id="open-editor">Editor</button>
+      </div>
+
+      <p class="credit">
+        Made by <a href="https://x.com/natgurlain" target="_blank" rel="noopener">@natgurlain</a> ·
+        <a href="https://github.com/natgurlain/repaint" target="_blank" rel="noopener">Source</a>
+      </p>
+    </div>
+  </body>
+</html>
